@@ -6,10 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AA0000000000000000000014 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000012 /* AppIcon.icns */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		AA0000000000000000000004 /* Dixie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Dixie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA0000000000000000000011 /* Dixie.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Dixie.entitlements; sourceTree = "<group>"; };
+		AA0000000000000000000012 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = folder.icns; path = Resources/AppIcon.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +40,7 @@
 			isa = PBXGroup;
 			children = (
 				AA000000000000000000000F /* Sources */,
+				AA0000000000000000000012 /* AppIcon.icns */,
 				AA0000000000000000000011 /* Dixie.entitlements */,
 				AA0000000000000000000010 /* Info.plist */,
 				AA0000000000000000000003 /* Products */,
@@ -111,6 +117,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA0000000000000000000014 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
