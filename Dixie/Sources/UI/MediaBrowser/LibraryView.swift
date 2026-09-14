@@ -2,42 +2,53 @@ import SwiftUI
 
 struct LibraryView: View {
     @EnvironmentObject var appState: AppState
-    @State private var searchQuery: String = ""
+    @State private var searchText: String = ""
     @State private var searchResults: [MediaItem] = []
     @State private var isSearching = false
+    @State private var refreshKey = UUID()
     
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
                 
-                TextField("Search library...", text: $searchQuery)
-                    .textFieldStyle(.plain)
-                    .onSubmit {
-                        performSearch()
-                    }
+                StyledTextField(placeholder: "Search library...", text: $searchText) {
+                    performSearch()
+                }
                 
-                if !searchQuery.isEmpty {
+                if !searchText.isEmpty {
                     Button(action: {
-                        searchQuery = ""
+                        searchText = ""
                         searchResults = []
+                        refreshKey = UUID()
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(10)
-            .background(Color(NSColor.controlBackgroundColor))
             
             Divider()
             
             if isSearching {
-                VStack { Spacer(); ProgressView(); Spacer() }
-            } else if !searchQuery.isEmpty && !searchResults.isEmpty {
+                VStack { Spacer(); ProgressView("Searching..."); Spacer() }
+            } else if !searchText.isEmpty && !searchResults.isEmpty {
                 List(searchResults) { item in
-                    LibraryItemRow(item: item)
+                    HStack {
+                        Image(systemName: item.isAudio ? "music.note" : "film")
+                            .foregroundColor(.secondary)
+                            .frame(width: 30)
+                        VStack(alignment: .leading) {
+                            Text(item.title)
+                                .lineLimit(1)
+                            Text(item.mimeType)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
             } else if !appState.recentItems.isEmpty {
                 ScrollView {
@@ -84,7 +95,7 @@ struct LibraryView: View {
     }
     
     private func performSearch() {
-        guard !searchQuery.isEmpty else {
+        guard !searchText.isEmpty else {
             searchResults = []
             return
         }
@@ -92,29 +103,10 @@ struct LibraryView: View {
         isSearching = true
         
         Task {
-            let results = await appState.mediaLibrary.search(query: searchQuery)
+            let results = await appState.mediaLibrary.search(query: searchText)
             await MainActor.run {
                 searchResults = results
                 isSearching = false
-            }
-        }
-    }
-}
-
-struct LibraryItemRow: View {
-    let item: MediaItem
-    
-    var body: some View {
-        HStack {
-            Image(systemName: item.isAudio ? "music.note" : "film")
-                .foregroundColor(.secondary)
-                .frame(width: 30)
-            VStack(alignment: .leading) {
-                Text(item.title)
-                    .lineLimit(1)
-                Text(item.mimeType)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
         }
     }

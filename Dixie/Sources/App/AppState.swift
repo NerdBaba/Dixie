@@ -17,11 +17,21 @@ final class AppState: ObservableObject {
         dlnaServer.configure(mediaLibrary: mediaLibrary)
     }
     
-    func addRecentItem(title: String, type: String) {
+    func addRecentItem(title: String, type: String, url: URL? = nil, mediaTitle: String? = nil) {
         let item = RecentItem(title: title, type: type, timestamp: Date())
         recentItems.insert(item, at: 0)
         if recentItems.count > 20 {
             recentItems = Array(recentItems.prefix(20))
+        }
+        
+        if let url = url {
+            let mediaItem = MediaItem(url: url, title: mediaTitle)
+            Task {
+                await mediaLibrary.addItem(mediaItem)
+                print("[AppState] Added item to library: \(mediaItem.title)")
+                let allItems = await mediaLibrary.getAllItems()
+                print("[AppState] Library now has \(allItems.count) items")
+            }
         }
     }
 }
@@ -67,10 +77,10 @@ struct MediaItem: Identifiable, Hashable, Sendable {
         mimeType.hasPrefix("image/")
     }
     
-    init(url: URL) {
+    init(url: URL, title: String? = nil) {
         self.id = UUID()
         self.url = url
-        self.title = url.deletingPathExtension().lastPathComponent
+        self.title = title ?? url.deletingPathExtension().lastPathComponent
         self.artist = nil
         self.album = nil
         self.duration = nil

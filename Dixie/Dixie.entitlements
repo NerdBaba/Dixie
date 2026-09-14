@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Sandbox is OFF. A DLNA server must join the 239.255.255.250
+	     multicast group and accept inbound TCP from arbitrary LAN devices;
+	     the sandbox only allows that with extra entitlements and it silently
+	     breaks SSDP on macOS 15+. -->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<key>com.apple.security.network.server</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
+</dict>
+</plist>

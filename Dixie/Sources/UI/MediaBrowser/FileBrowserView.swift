@@ -1,12 +1,33 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct FileBrowserView: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedFolder: URL?
     @State private var isScanning = false
     @State private var scannedItems: [MediaItem] = []
+    @State private var selectedTab = 0
     
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("Source", selection: $selectedTab) {
+                Text("Folder").tag(0)
+                Text("Files").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding()
+            
+            Divider()
+            
+            if selectedTab == 0 {
+                folderView
+            } else {
+                filesView
+            }
+        }
+    }
+    
+    private var folderView: some View {
         VStack(spacing: 20) {
             if let folder = selectedFolder {
                 HStack {
@@ -69,6 +90,46 @@ struct FileBrowserView: View {
         }
     }
     
+    private var filesView: some View {
+        VStack(spacing: 20) {
+            if !scannedItems.isEmpty {
+                List(scannedItems) { item in
+                    HStack {
+                        Image(systemName: item.isAudio ? "music.note" : "film")
+                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading) {
+                            Text(item.title)
+                                .lineLimit(1)
+                            Text(item.mimeType)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button(action: { removeItem(item) }) {
+                            Image(systemName: "xmark.circle")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            } else {
+                Spacer()
+                VStack(spacing: 15) {
+                    Image(systemName: "doc.badge.plus")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
+                    Text("No files added")
+                        .font(.headline)
+                    Button("Add Media Files") {
+                        selectFiles()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                Spacer()
+            }
+        }
+    }
+    
     private func selectFolder() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
@@ -80,6 +141,31 @@ struct FileBrowserView: View {
             selectedFolder = url
             appState.watchFolders.append(url)
             scanFolder()
+        }
+    }
+    
+    private func selectFiles() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.message = "Select media files"
+        panel.allowedContentTypes = [.audio, .movie, .video]
+        
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                let item = MediaItem(url: url)
+                scannedItems.append(item)
+                Task {
+                    await appState.mediaLibrary.addItem(item)
+                }
+            }
+        }
+    }
+    
+    private func removeItem(_ item: MediaItem) {
+        Task {
+            await appState.mediaLibrary.removeItem(item)
         }
     }
     

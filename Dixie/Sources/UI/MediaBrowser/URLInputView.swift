@@ -5,7 +5,7 @@ struct URLInputView: View {
     @State private var urlText: String = ""
     @State private var isLoading = false
     @State private var statusMessage = ""
-    @State private var isFocused = false
+    @State private var refreshKey = UUID()
     
     var body: some View {
         VStack(spacing: 16) {
@@ -14,15 +14,14 @@ struct URLInputView: View {
                     .font(.headline)
                 
                 HStack(spacing: 8) {
-                    TextField("Enter or paste URL...", text: $urlText)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(height: 36)
+                    StyledTextField(placeholder: "Enter or paste URL...", text: $urlText) {
+                        addURL()
+                    }
                     
                     Button("Add") {
                         addURL()
                     }
                     .buttonStyle(.borderedProminent)
-                    .frame(width: 70)
                     .disabled(urlText.isEmpty || isLoading)
                 }
             }
@@ -53,14 +52,21 @@ struct URLInputView: View {
                     .foregroundColor(.secondary)
                 
                 VStack(spacing: 8) {
-                    QuickAddRow(icon: "play.rectangle.fill", title: "YouTube", color: .red) {
+                    QuickAddButton(icon: "play.rectangle.fill", title: "YouTube", color: .red) {
                         urlText = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                        refreshKey = UUID()
                     }
-                    QuickAddRow(icon: "music.note", title: "Bandcamp", color: .blue) {
+                    QuickAddButton(icon: "music.note", title: "Bandcamp", color: .blue) {
                         urlText = "https://bandcamp.com/"
+                        refreshKey = UUID()
                     }
-                    QuickAddRow(icon: "waveform", title: "SoundCloud", color: .orange) {
+                    QuickAddButton(icon: "waveform", title: "SoundCloud", color: .orange) {
                         urlText = "https://soundcloud.com/"
+                        refreshKey = UUID()
+                    }
+                    QuickAddButton(icon: "link", title: "Direct URL", color: .purple) {
+                        urlText = "http://example.com/media.mp3"
+                        refreshKey = UUID()
                     }
                 }
             }
@@ -89,28 +95,43 @@ struct URLInputView: View {
                 }
                 
                 let source = try await appState.streamResolver.resolve(url: url)
+
+                // Opaque links (uuids, index.php, percent-encoded slugs) hide the
+                // real file name, so ask the origin. This hits the network, so it
+                // happens before we hop to the main actor.
+                var resolvedName: String?
+                if case .remote(let remoteURL) = source {
+                    resolvedName = await appState.streamResolver.resolveFileName(for: remoteURL)
+                }
+
                 await MainActor.run {
                     switch source {
-                    case .youTube(let streamURL, let title):
+                    case .youTube(_, let title):
                         statusMessage = "✓ Added: YouTube - \(title)"
-                        appState.addRecentItem(title: "YouTube: \(title)", type: "url")
+                        appState.addRecentItem(title: "YouTube: \(title)", type: "url", url: url, mediaTitle: title)
                         urlText = ""
+                        refreshKey = UUID()
                     case .bandcamp(_, let title):
                         statusMessage = "✓ Added: Bandcamp - \(title)"
-                        appState.addRecentItem(title: "Bandcamp: \(title)", type: "url")
+                        appState.addRecentItem(title: "Bandcamp: \(title)", type: "url", url: url, mediaTitle: title)
                         urlText = ""
+                        refreshKey = UUID()
                     case .soundCloud(_, let title):
                         statusMessage = "✓ Added: SoundCloud - \(title)"
-                        appState.addRecentItem(title: "SoundCloud: \(title)", type: "url")
+                        appState.addRecentItem(title: "SoundCloud: \(title)", type: "url", url: url, mediaTitle: title)
                         urlText = ""
+                        refreshKey = UUID()
                     case .local(let fileURL):
                         statusMessage = "✓ Added: \(fileURL.lastPathComponent)"
-                        appState.addRecentItem(title: fileURL.lastPathComponent, type: "local")
+                        appState.addRecentItem(title: fileURL.lastPathComponent, type: "local", url: fileURL)
                         urlText = ""
+                        refreshKey = UUID()
                     case .remote(let remoteURL):
-                        statusMessage = "✓ Added: \(remoteURL.lastPathComponent)"
-                        appState.addRecentItem(title: remoteURL.lastPathComponent, type: "url")
+                        let name = resolvedName ?? remoteURL.lastPathComponent
+                        statusMessage = "✓ Added: \(name)"
+                        appState.addRecentItem(title: name, type: "url", url: remoteURL, mediaTitle: name)
                         urlText = ""
+                        refreshKey = UUID()
                     case .error(let message):
                         statusMessage = "Error: \(message)"
                     }
@@ -126,7 +147,7 @@ struct URLInputView: View {
     }
 }
 
-struct QuickAddRow: View {
+struct QuickAddButton: View {
     let icon: String
     let title: String
     let color: Color

@@ -3,6 +3,7 @@ import SwiftUI
 struct DevicesView: View {
     @EnvironmentObject var appState: AppState
     @State private var isScanning = false
+    @State private var discovery: SSDPDiscovery?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -121,63 +122,57 @@ struct DevicesView: View {
     }
     
     private func scanForDevices() {
+        discovery?.stop()
         isScanning = true
         appState.discoveredDevices = []
-        
+
         print("[UI] Starting device scan...")
-        
-        let discovery = SSDPDiscovery()
-        
-        discovery.onDeviceDiscovered = { device in
-            print("[UI] Device found: \(device.st)")
-            DispatchQueue.main.async {
-                self.appState.discoveredDevices.append(DiscoveredDevice(
-                    name: device.st.isEmpty ? "Unknown Device" : device.st,
-                    address: device.location.absoluteString,
-                    type: .renderer
-                ))
+
+        let scanner = SSDPDiscovery()
+        scanner.onDeviceDiscovered = { [weak appState] device in
+            print("[UI] Device found: \(device.st) server=\(device.server)")
+            let type: DiscoveredDevice.DeviceType =
+                device.st.localizedCaseInsensitiveContains("MediaRenderer")
+                || device.st.localizedCaseInsensitiveContains("AVTransport")
+                || device.st.localizedCaseInsensitiveContains("RenderingControl")
+                ? .renderer : .server
+            let entry = DiscoveredDevice(
+                name: friendlyName(for: device),
+                address: device.location.absoluteString,
+                type: type
+            )
+            Task { @MainActor in
+                guard let appState else { return }
+                if !appState.discoveredDevices.contains(where: { $0.address == entry.address && $0.name == entry.name }) {
+                    appState.discoveredDevices.append(entry)
+                }
             }
         }
-        
-        discovery.start()
-        
+        discovery = scanner
+        scanner.start()
+
         Task { @MainActor in
-            print("[UI] Waiting for devices...")
-            try? await Task.sleep(nanoseconds: 8_000_000_000)
-            let devices = discovery.getDevices()
+            for _ in 0..<3 {
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                scanner.resendMsearch()
+            }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            let devices = scanner.getDevices()
             print("[UI] Scan complete, found \(devices.count) devices")
             if devices.isEmpty {
-                print("[UI] No devices found. Make sure your TV is on and DLNA/UPnP is enabled.")
+                print("[UI] No devices found. Make sure your TV is on and DLNA/UPnP is enabled, and Mac + TV share the same Wi-Fi.")
             }
             isScanning = false
         }
     }
-    
+
+    private func friendlyName(for device: SSDPDiscovery.DiscoveredUPnPDevice) -> String {
+        if !device.server.isEmpty { return device.server }
+        if !device.st.isEmpty { return device.st }
+        return device.location.host ?? "Unknown Device"
+    }
+
     private func getLocalIP() -> String {
-        var address = "127.0.0.1"
-        var ifaddr: UnsafeMutablePointer<ifaddrs>?
-        
-        guard getifaddrs(&ifaddr) == 0 else { return address }
-        defer { freeifaddrs(ifaddr) }
-        
-        var ptr = ifaddr
-        while ptr != nil {
-            defer { ptr = ptr?.pointee.ifa_next }
-            
-            let interface = ptr!.pointee
-            let addrFamily = interface.ifa_addr.pointee.sa_family
-            
-            if addrFamily == UInt8(AF_INET) {
-                let name = String(cString: interface.ifa_name)
-                if name == "en0" {
-                    var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                    getnameinfo(interface.ifa_addr, socklen_t(interface.ifa_addr.pointee.sa_len),
-                               &hostname, socklen_t(hostname.count), nil, socklen_t(0), NI_NUMERICHOST)
-                    address = String(cString: hostname)
-                }
-            }
-        }
-        
-        return address
+        NetworkUtil.localIPv4Address()
     }
 }
