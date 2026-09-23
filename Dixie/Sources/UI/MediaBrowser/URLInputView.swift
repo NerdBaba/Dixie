@@ -56,14 +56,6 @@ struct URLInputView: View {
                         urlText = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                         refreshKey = UUID()
                     }
-                    QuickAddButton(icon: "music.note", title: "Bandcamp", color: .blue) {
-                        urlText = "https://bandcamp.com/"
-                        refreshKey = UUID()
-                    }
-                    QuickAddButton(icon: "waveform", title: "SoundCloud", color: .orange) {
-                        urlText = "https://soundcloud.com/"
-                        refreshKey = UUID()
-                    }
                     QuickAddButton(icon: "link", title: "Direct URL", color: .purple) {
                         urlText = "http://example.com/media.mp3"
                         refreshKey = UUID()
