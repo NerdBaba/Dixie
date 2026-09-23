@@ -40,7 +40,7 @@ struct DevicesView: View {
                     HStack {
                         Image(systemName: "globe")
                             .foregroundColor(.blue)
-                        Text("http://\(getLocalIP()):8080")
+                        Text("http://\(getLocalIP()):\(appState.dlnaServer.port)")
                             .font(.system(.callout, design: .monospaced))
                         Spacer()
                     }
